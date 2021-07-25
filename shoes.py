@@ -4,8 +4,11 @@ import os
 import re
 import requests
 
+from util.download import download_image
+
 headers = {
-    'Host': 'cdn.shopify.com',
+    # 'Host': 'cdn.shopify.com',
+    'Host': 'services.mybcapps.com',
     'Connection': 'keep-alive',
     'Pragma': 'no-cache',
     'Cache-Control': 'no-cache',
@@ -14,22 +17,27 @@ headers = {
     'Upgrade-Insecure-Requests': '1',
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-    'Sec-Fetch-Site': 'none',
-    'Sec-Fetch-Mode': 'navigate',
-    'Sec-Fetch-User': '?1',
-    'Sec-Fetch-Dest': 'document',
+    # 'Sec-Fetch-Site': 'none',
+    # 'Sec-Fetch-Mode': 'navigate',
+    # 'Sec-Fetch-User': '?1',
+    'Sec-Fetch-Site': 'cross-site',
+    'Sec-Fetch-Mode': 'no-cors',
+    'Sec-Fetch-Dest': 'script',
+    'Referer': 'https://www.uinfootwear.com/',
     'Accept-Encoding': 'gzip, deflate, br',
-    'Accept-Language': 'zh-CN,zh;q=0.9'
+    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
 }
 
 
 def get_image_info(page, collection_scope):
     params = {
-        't': '1625711440862',
+        't': '1627191096129',
         '_': 'pf',
-        'shop': 'heydudeshoes.myshopify.com',
+        # 'shop': 'heydudeshoes.myshopify.com',  # https://www.heydudeshoesusa.com/
+        # https://www.uinfootwear.com/
+        'shop': 'uin-footwear-official-store.myshopify.com',
         'page': page,
-        'limit': '100',
+        'limit': 40,
         'sort': 'manual',
         'display': 'grid',
         'collection_scope': collection_scope,
@@ -47,54 +55,48 @@ def get_image_info(page, collection_scope):
         "https://services.mybcapps.com/bc-sf-filter/filter", headers=headers,
         params=params)
     content = response.text
+
     image_list = re.findall(
-        r'"\d":"(https://cdn.shopify.com/s/files/1/.*?)",',
+        r'"\d":"(https://cdn.shopify.com/s/files/1/.*?)"+?',
         content,
         re.M | re.I)
+    print(f"获取链接数量:{len(image_list)}")
+    for i, j in enumerate(image_list):
+        if "\"" in image_list:
+            print(i)
+            print(j)
     name_list = re.findall(
-        r'"\d":"https://cdn.shopify.com/s/files/1/\d+/\d+/products/(.*?)\?v=\d+",',
+        # r'"\d":"https://cdn.shopify.com/s/files/1/\d+/\d+/products/(.*?)\?v=\d+",',
+        # # https://www.heydudeshoesusa.com/
+        # https://www.uinfootwear.com/
+        r'"\d":"https://cdn.shopify.com/s/files/1/\d+/\d+/\d+/products/(.*?)\?v=\d+"+?',
         content,
         re.M | re.I)
+    for i, j in enumerate(name_list):
+        if "\"" in name_list:
+            print(i)
+            print(j)
+            print(response.text)
+            raise Exception
+    # for i, j in enumerate(name_list):
+    #     print(i)
+    #     print(j)
+    print(f"获取名字数量:{len(name_list)}")
     image_dict = {name: image for image, name in zip(image_list, name_list)}
     return image_dict
-
-
-def download_image(img_url, path):
-    print(img_url)
-    status_code = 100
-    while status_code != 200:
-        r = requests.get(img_url, headers=headers, stream=True)
-        status_code = r.status_code
-        print(status_code)  # 返回状态码
-        if status_code == 200:
-            with open(path, "wb") as f:
-                # 将内容写入图片
-                print(f"path:{path}")
-                f.write(r.content)
-            print("done")
-
-
-def download_image1(img_url, path):
-    r = requests.get(img_url, headers=headers, stream=True)
-    f = open(path, "wb")
-    for chunk in r.iter_content(chunk_size=512):  # 按照块的大小读取
-        # for chunk in r.iter_lines():    # 按照一行一行的读取
-        if chunk:
-            f.write(chunk)
-    f.close()
 
 
 def process(page_no, collection_scope, type):
     image_info = get_image_info(page_no, collection_scope)
     for image_name, image_url in image_info.items():
         save_path = os.path.join(".", type, str(page_no))
-        if not os.path.exists(save_path):
-            os.makedirs(save_path)
-        download_image(image_url, os.path.join(save_path, image_name))
+        image_info[image_name] = os.path.join(save_path, image_name)
+        download_image(image_info)
 
 
 def main():
-    collect_list = {
+    # https://www.heydudeshoesusa.com/
+    hey_collect_list = {
         "women": {
             "page": 3,
             "collection_scope": 26778261,
@@ -108,9 +110,24 @@ def main():
             "collection_scope": 154960199747,
         },
     }
+    # https://www.uinfootwear.com/
+    uin_collect_list = {
+        "women": {
+            "page": 10,
+            "collection_scope": 91020558390,
+        },
+        "men": {
+            "page": 8,
+            "collection_scope": 166455148657,
+        },
+        "kids": {
+            "page": 3,
+            "collection_scope": 91021344822,
+        },
+    }
     # 开启3个进程，传入爬取的页码范围
-    pool = multiprocessing.Pool(processes=7)
-    for item, value in collect_list.items():
+    pool = multiprocessing.Pool(processes=21)
+    for item, value in uin_collect_list.items():
         page = value.get("page")
         collection_scope = value.get("collection_scope")
         for page_no in range(1, page + 1):
