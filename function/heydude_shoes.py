@@ -1,9 +1,17 @@
-# -*- coding:utf-8 -*-
+#!/usr/bin/env python
+
+"""
+-------------------------------------------------
+@date：         2021/7/30 10:41
+@Author :
+@File Name：
+@Description : 爬取网站信息 https://heydude.shoe
+-------------------------------------------------
+"""
 import multiprocessing
 import os
 import re
 import requests
-
 from util.download import download_image
 
 headers = {
@@ -89,7 +97,7 @@ def get_image_info(page, collection_scope):
 def process(page_no, collection_scope, type):
     image_info = get_image_info(page_no, collection_scope)
     for image_name, image_url in image_info.items():
-        save_path = os.path.join(".", type, str(page_no))
+        save_path = os.path.join("..", type, str(page_no))
         image_info[image_name] = os.path.join(save_path, image_name)
         download_image(image_info)
 

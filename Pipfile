@@ -21,6 +21,7 @@ autopep8 = "*"
 selenium = "*"
 bs4 = "*"
 pymysql = "*"
+python-dateutil = "*"
 
 [requires]
 python_version = "3.8"

@@ -5,32 +5,25 @@
 @date：         2021/7/28 15:27
 @Author :
 @File Name：    fund.py.py
-@Description :
+@Description : 爬取基金中的股票信息
 -------------------------------------------------
 """
 import datetime
+from multiprocessing import Manager, Pool
 import os
 import subprocess
-from multiprocessing import Manager, Pool, current_process
 import time
 from decimal import Decimal
 import requests
 import json
 import re
 from bs4 import BeautifulSoup
-from util.mysql_conn import MysqlConn
+from util.tools import store_records, error_info_write
 
 # 浏览器头
 headers = {
     'content-type': 'application/json',
     'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:22.0) Gecko/20100101 Firefox/22.0'
-}
-db_info = {
-    "host": "",
-    "port": 3306,
-    "user": "",
-    "password": "",
-    "db_name": "",
 }
 
 
@@ -47,8 +40,10 @@ def get_funds_code():
 
 
 def get_fund_info(fund_code, return_format="easy"):
-    """
-    :param fund_code: string 基金代码
+    """ 获取所有基金的信息
+
+    :param fund_code: string 基金编号
+    :param return_format: string easy/hard 返回信息详细程度
     :return:
     """
     if return_format == "easy":
@@ -74,33 +69,11 @@ def get_fund_info(fund_code, return_format="easy"):
         print(rsp.text)
 
 
-def store_stock_of_fund(stock_info):
-    update_sql_list = []
-    for stock in stock_info:
-        columns_info = ",".join(stock.keys())
-        values_info = ""
-        for value_name in stock.values():
-            if isinstance(value_name, str):
-                values_info += "\"" + value_name + "\","
-            else:
-                values_info += str(value_name) + ","
-        update_sql = f'REPLACE INTO tbl_stock_of_fund ({columns_info}) VALUES ({values_info.rstrip(",")});'
-        update_sql_list.append(update_sql)
-
-    # 存储数据库
-    mysql_conn = MysqlConn(**db_info)
-    # print(update_sql_list)
-    mysql_conn.insert_by_sql(list_sql=update_sql_list)
-
-
-def error_info_write(info):
-    with open("error.log", "a+", encoding="utf-8") as f:
-        f.write(info)
-
-
-def get_fund_stock_info(fund_code, share_lock):
+def get_fund_stock_info(fund_code, table_name, share_lock):
     """ 获取基金股票信息
-    :param fund_code:
+    :param fund_code: sting 基金编号
+    :param table_name: string 表名
+    :param share_lock: lock 共享锁
     :return:
     """
     print(f"开始获取基金{fund_code}")
@@ -183,6 +156,11 @@ def get_fund_stock_info(fund_code, share_lock):
                     raise Exception("未解析到数据")
 
                 # 进行数据格式转化
+                if "." in stock_code:
+                    split_index = stock_code.index(".")
+                    stock_code, exchange = stock_code[:split_index], stock_code[split_index + 1:]
+                else:
+                    exchange = ""
                 if "-" in stock_value:
                     continue
                 else:
@@ -208,13 +186,13 @@ def get_fund_stock_info(fund_code, share_lock):
                         "fund_name": fund_name,
                         "fund_page": fund_page,
                         "fund_date": fund_date,
+                        "exchange": exchange,
                     }
                 )
-    # return stock_info
     # 存储数据库
     if stock_info:
         share_lock.acquire()
-        store_stock_of_fund(stock_info)
+        store_records(table_name, stock_info)
         share_lock.release()
     print(f"获取基金{fund_code}完成\n")
 
@@ -247,7 +225,7 @@ def get_stock_of_fund():
             # 异步非阻塞
             pool.apply_async(
                 func=get_fund_stock_info,
-                args=(fund_code, share_lock),
+                args=(fund_code, "tbl_fund_stock_info", share_lock),
                 error_callback=throw_exception
             )
             over_time_fp = datetime.datetime.now()
@@ -263,7 +241,7 @@ def get_stock_of_fund():
         print('主进程结束:{}'.format(time.time()))
 
     # 获取基金中的股票信息
-    # for fund_info in fund_info_list[7885:7886]:
+    # for fund_info in fund_info_list[11200:]:
     #     fund_code = fund_info[0]
     #     get_fund_stock_info(fund_code, share_lock)
 
