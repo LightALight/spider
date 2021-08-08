@@ -27,33 +27,53 @@ headers = {
 }
 
 
-def get_funds_code():
-    url = "http://fund.eastmoney.com/js/fundcode_search.js"
-    rsp = requests.get(url=url, headers=headers)
-    content = rsp.text
-    fund_info_list = re.findall(
-        r'\[".+?\]',
-        content,
-        re.M | re.I)
-    fund_info_list = [eval(fund_info) for fund_info in fund_info_list]
-    return fund_info_list
+def get_fund_info(info_type="code"):
+    """获取所有基金基本信息
 
-
-def get_fund_info(fund_code, return_format="easy"):
-    """ 获取所有基金的信息
-
-    :param fund_code: string 基金编号
-    :param return_format: string easy/hard 返回信息详细程度
+    :param info_type:
     :return:
     """
-    if return_format == "easy":
+    if info_type == "code":
+        url = "http://fund.eastmoney.com/js/fundcode_search.js"
+        rsp = requests.get(url=url, headers=headers)
+        content = rsp.text
+        fund_info_list = re.findall(
+            r'\[".+?\]',
+            content,
+            re.M | re.I)
+        fund_info_list = [eval(fund_info) for fund_info in fund_info_list]
+        return fund_info_list
+    elif info_type == "company":
+        url = f"http://fund.eastmoney.com/js/jjjz_gs.js?rt={int(round(time.time() * 1000))}"
+        rsp = requests.get(url=url, headers=headers)
+        content = rsp.text
+        # 查找结果
+        search = re.findall(r'\[\".+?\"\]', content, re.M | re.I)
+        for record in search:
+            data = json.loads(record)
+            return {
+                "fund_company_code": data[0],
+                "fund_company_name": data[1],
+            }
+        else:
+            return "未找到信息"
+
+
+def get_fund_info_by_code(fund_code, return_format="rate"):
+    """ 通过基金编号获取基金的信息
+
+    :param fund_code: string 基金编号
+    :param return_format: string rate 实时利率/detail 返回信息详细程度
+    :return:
+    """
+    if return_format == "rate":
         url = f"http://fundgz.1234567.com.cn/js/{fund_code}.js?rt={int(round(time.time() * 1000))}"
         rsp = requests.get(url=url, headers=headers)
         content = rsp.text
         # 查找结果
         search = re.findall(r'\{.*\}', content, re.M | re.I)
-        for i in search:
-            data = json.loads(i)
+        if search:
+            data = json.loads(search[0])
             return {
                 "fund_code": data.get('fundcode'),
                 "name": data.get('name'),
@@ -63,14 +83,82 @@ def get_fund_info(fund_code, return_format="easy"):
                 "expect_net_value": data.get('gsz'),
                 "expect_earning_rate": data.get('gszzl'),
             }
+        else:
+            return "未找到信息"
+
     else:
+        # 页面:http://fund.eastmoney.com/000001.html?spm=search
         url = f"http://fund.eastmoney.com/pingzhongdata/{fund_code}.js?v={time.strftime('%Y%m%d%H%M%S', time.localtime())}"
         rsp = requests.get(url=url, headers=headers)
-        print(rsp.text)
+        content = rsp.text
+        # 查找结果
+        print(content)
+        # 基金名称
+        fund_name = re.findall(r'fS_name = "(.+?)"', content, re.M | re.I)[0]
+        # 基金现有费率
+        fund_rate = re.findall(r'fund_Rate="(.+?)"', content, re.M | re.I)[0]
+        # 基金最小申购金额
+        fund_min_amount = re.findall(r'fund_minsg="(.+?)"', content, re.M | re.I)[0]
+        # 基金持有股票
+        fund_stock_codes = re.findall(r'stockCodesNew =(\[.+?\])', content, re.M | re.I)
+        if fund_stock_codes:
+            fund_stock_code_list = json.loads(fund_stock_codes[0])
+            fund_stock_code_list = [stock_code[2:] for stock_code in fund_stock_code_list]
+        else:
+            fund_stock_code_list = []
+        # 基金持有债券
+        fund_bond_codes = re.findall(r'zqCodesNew =(\[.+?\])', content, re.M | re.I)
+        if fund_bond_codes:
+            fund_bond_code_list = json.loads(fund_bond_codes[0])
+            fund_bond_code_list = [bond_code.ltrip("0.").ltrip("1.") for bond_code in fund_bond_code_list]
+        else:
+            fund_bond_code_list = []
+        # 基金阶段性收益率
+        fund_interest_rate_1y = re.findall(r'syl_1n="(.+?)"', content, re.M | re.I)[0]
+        fund_interest_rate_6m = re.findall(r'syl_6y="(.+?)"', content, re.M | re.I)[0]
+        fund_interest_rate_3m = re.findall(r'syl_3y="(.+?)"', content, re.M | re.I)[0]
+        fund_interest_rate_1m = re.findall(r'syl_1y="(.+?)"', content, re.M | re.I)[0]
+
+        fund_info = {
+            "fund_name": fund_name,
+            "fund_code": fund_code,
+            "fund_rate": '{:.2%}'.format(float(fund_rate)/100),
+            "fund_min_amount": fund_min_amount,
+            "fund_stock_code_list": fund_stock_code_list,
+            "fund_bond_code_list": fund_bond_code_list,
+            "fund_interest_rate_1m":'{:.2%}'.format(float(fund_interest_rate_1m)/100),
+            "fund_interest_rate_3m":'{:.2%}'.format(float(fund_interest_rate_3m)/100),
+            "fund_interest_rate_6m":'{:.2%}'.format(float(fund_interest_rate_6m)/100),
+            "fund_interest_rate_1y":'{:.2%}'.format(float(fund_interest_rate_1y)/100),
+        }
+
+        print(fund_info)
+        # 单位净值走势
+        fund_value_pattern = r'{"x":[0-9]{13},"y":.+?,"equityReturn":.+?,"unitMoney":".*?"}'
+        # 累计净值走势
+        fund_cumulative_value_pattern = r'Data_ACWorthTrend = \[.*?\];/*累计收益率走势*/'
+        # 累计收益率走势
+        fund_cumulative_value_pattern = r'Data_grandTotal = \[.*?\];/*累计收益率走势*/'
+        fund_value_records = re.findall(
+            fund_value_pattern, content, re.M | re.I)
+        fund_cumulative_value_records = re.findall(
+            fund_cumulative_value_pattern, content, re.M | re.I)
+        for index, fund_value_record in enumerate(fund_value_records):
+            value_data = json.loads(fund_value_records[index])
+            cumulative_value_data = json.loads(fund_cumulative_value_records[index])
+            fund_value_records[index] = {
+                "fund_date": time.strftime("%Y-%m-%d",time.localtime(value_data.get("x")/1000)),  # 日期
+                "fund_value": value_data.get("y"),  # 净值
+                "fund_cumulative_value": cumulative_value_data[1],  # 累计净值
+                "fund_return": value_data.get("equityReturn"),  # 净值回报
+                "fund_money": value_data.get("unitMoney"),  # 每份派送金
+            }
+        print(fund_value_records)
+        return fund_value_records
 
 
 def get_fund_stock_info(fund_code, table_name, share_lock):
-    """ 获取基金股票信息
+    """ 获取基金历史持有股票信息并写入数据库
     :param fund_code: sting 基金编号
     :param table_name: string 表名
     :param share_lock: lock 共享锁
@@ -213,7 +301,7 @@ def throw_exception(name):
 
 def get_stock_of_fund():
     # 获取所有基金的信息
-    fund_info_list = get_funds_code()
+    fund_info_list = get_fund_info()
     share_lock = Manager().Lock()
 
     # 开启3个进程，传入爬取的页码范围
@@ -247,4 +335,4 @@ def get_stock_of_fund():
 
 
 if __name__ == "__main__":
-    get_stock_of_fund()
+    get_fund_info_by_code("000001", "company")
