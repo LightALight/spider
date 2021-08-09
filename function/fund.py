@@ -100,7 +100,8 @@ def get_fund_info_by_code(fund_code, return_format="rate"):
         # 基金最小申购金额
         fund_min_amount = re.findall(r'fund_minsg="(.+?)"', content, re.M | re.I)[0]
         # 基金持有股票
-        fund_stock_codes = re.findall(r'stockCodesNew =(\[.+?\])', content, re.M | re.I)
+        fund_stock_codes = re.findall(r'stockCodesNew =(\[.*?\])', content, re.M | re.I)
+        print(f"fund_stock_codes:{fund_stock_codes}")
         if fund_stock_codes:
             fund_stock_code_list = json.loads(fund_stock_codes[0])
             fund_stock_code_list = [stock_code[2:] for stock_code in fund_stock_code_list]
@@ -125,7 +126,7 @@ def get_fund_info_by_code(fund_code, return_format="rate"):
             "fund_rate": '{:.2%}'.format(float(fund_rate)/100),
             "fund_min_amount": fund_min_amount,
             "fund_stock_code_list": fund_stock_code_list,
-            "fund_bond_code_list": fund_bond_code_list,
+            "fund_bond_code_list": fund_bond_code_list,  # 拿不到
             "fund_interest_rate_1m":'{:.2%}'.format(float(fund_interest_rate_1m)/100),
             "fund_interest_rate_3m":'{:.2%}'.format(float(fund_interest_rate_3m)/100),
             "fund_interest_rate_6m":'{:.2%}'.format(float(fund_interest_rate_6m)/100),
@@ -136,13 +137,15 @@ def get_fund_info_by_code(fund_code, return_format="rate"):
         # 单位净值走势
         fund_value_pattern = r'{"x":[0-9]{13},"y":.+?,"equityReturn":.+?,"unitMoney":".*?"}'
         # 累计净值走势
-        fund_cumulative_value_pattern = r'Data_ACWorthTrend = \[.*?\];/*累计收益率走势*/'
+        fund_cumulative_value_pattern = r'Data_ACWorthTrend = (\[.*?\]);/*累计收益率走势*/'
         # 累计收益率走势
-        fund_cumulative_value_pattern = r'Data_grandTotal = \[.*?\];/*累计收益率走势*/'
+        # fund_cumulative_interst_rate_value_pattern = r'Data_grandTotal = \[.*?\];/*累计收益率走势*/'
         fund_value_records = re.findall(
             fund_value_pattern, content, re.M | re.I)
         fund_cumulative_value_records = re.findall(
             fund_cumulative_value_pattern, content, re.M | re.I)
+        print("####")
+        print(fund_cumulative_value_records)
         for index, fund_value_record in enumerate(fund_value_records):
             value_data = json.loads(fund_value_records[index])
             cumulative_value_data = json.loads(fund_cumulative_value_records[index])
@@ -335,4 +338,4 @@ def get_stock_of_fund():
 
 
 if __name__ == "__main__":
-    get_fund_info_by_code("000001", "company")
+    get_fund_info_by_code("000998", "company")
