@@ -150,3 +150,13 @@ if __name__ == "__main__":
         table_name="tbl_fund_stock_value",
         sep_colunm_name="stock_code",
     )
+
+
+def percentage_format(number_str):
+    """ 字符串小数转换成百分比
+
+    :param number_str:
+    :return:
+    """
+    if number_str:
+        return '{:.2%}'.format(float(number_str) / 100)
