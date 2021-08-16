@@ -36,7 +36,7 @@ def get_fund_info(info_type="code"):
     :return:
     """
     if info_type == "code":
-        rsp = requests.get(url=fund_code_url, headers=headers)
+        rsp = requests.get(url=fund_code_list_url, headers=headers)
         content = rsp.text
         fund_info_list = re.findall(
             r'\[".+?\]',
@@ -49,7 +49,7 @@ def get_fund_info(info_type="code"):
             "rt": int(round(time.time() * 1000))
         }
         rsp = requests.get(
-            url=fund_company_url,
+            url=fund_company_list_url,
             headers=headers,
             params=params)
         content = rsp.text
