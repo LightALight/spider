@@ -98,7 +98,12 @@ def process(page_no, collection_scope, type):
     image_info = get_image_info(page_no, collection_scope)
     for image_name, image_url in image_info.items():
         save_path = os.path.join("..", type, str(page_no))
-        download_image(image_url,os.path.join(save_path, image_name),headers=headers)
+        download_image(
+            image_url,
+            os.path.join(
+                save_path,
+                image_name),
+            headers=headers)
 
 
 def main():

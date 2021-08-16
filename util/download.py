@@ -13,7 +13,7 @@ def download_way_image1(img_url, path, headers):
     f.close()
 
 
-def download_image(image_url,save_path, headers):
+def download_image(image_url, save_path, headers):
     save_dir = os.path.dirname(save_path)
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
