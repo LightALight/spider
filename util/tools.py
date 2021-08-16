@@ -160,3 +160,30 @@ def percentage_format(number_str):
     """
     if number_str:
         return '{:.2%}'.format(float(number_str) / 100)
+
+
+def thousandth_format(str_number):
+    """ 数字转换千分位
+
+    :param str_number:
+    :return:
+    """
+    if "." in str_number:
+        # 如果存在小数点,拆分整数和小数部分
+        str_int = str_number[:str_number.index(".")]
+        str_decimal = str_number[str_number.index("."):]
+    else:
+        str_int = str_number
+        str_decimal = ""
+
+    length = len(str_int)
+    if length <= 3:
+        return str_number
+
+    str_number_list = list(str_int)
+    insert_postion = -3
+    for number in range(0, length // 3):
+        str_number_list.insert(insert_postion, ",")
+        insert_postion += -4
+    str_number = "".join(str_number_list) + str_decimal
+    return str_number

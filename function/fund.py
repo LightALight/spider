@@ -174,8 +174,7 @@ def get_fund_info_by_code(fund_code, return_format="rate"):
         fund_summary_info = {
             "fund_name": fund_name,
             "fund_code": fund_code,
-            "fund_rate": '{:.2%}'.format(
-                float(fund_rate) / 100),
+            "fund_rate": percentage_format(percentage_format(fund_rate)),
             "fund_min_amount": fund_min_amount,
             "fund_stock_code_list": fund_stock_code_list,
             "fund_bond_code_list": fund_bond_code_list,
