@@ -10,10 +10,10 @@
 """
 import re
 import requests
+from config.target_url import *
+from util.tools import from_thousandth_format, from_percentage_format
 
 # 浏览器头
-from config.target_url import *
-
 headers = {
     'content-type': 'application/json',
     'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:22.0) Gecko/20100101 Firefox/22.0'
@@ -143,5 +143,143 @@ def get_history_stock(stock_code_list, start_date, end_date):
         return stock_history_info_dict
 
 
+def get_stock_value_to_earn_table(total_assets, account_type, start_date):
+    """ 获取市值收益表
+
+    :param total_assets: int 总市值（单位万）
+    :param account_type: string 枚举 double_open/ke_chuang/chuang_ye/double_closed
+    :param start_date: string 计算收益的起始日期
+    :return: dict 收益字典
+    """
+
+    value_to_earn_table = {}
+    params = {
+        "total_assets": total_assets,
+        "account_count": 1,
+        "start_date": start_date,
+    }
+    if account_type in ("chuang_ye", "double_closed"):
+        # 创业板 或 双不开
+        params["no_kcb"] = 1
+    if account_type in ("ke_chuang", "double_closed"):
+        # 科创板 或 双不开
+        params["no_second"] = 1
+
+    url = "https://www.jisilu.cn/data/new_stock/winning/"
+    rsp = requests.get(url=url, headers=headers, params=params)
+    content = rsp.text
+    bs = BeautifulSoup(content, "html.parser")
+    # 获取各个证券所市值数据
+    shanghai_value_to_earn_table = bs.select(
+        "#calcForm > div.query_tables > table:nth-child(1) > tr")
+    shenzhen_value_to_earn_table = bs.select(
+        "#calcForm > div.query_tables > table:nth-child(2) > tr")
+    if len(shanghai_value_to_earn_table) > 0:
+        value_to_earn_table["shanghai"] = []
+    if len(shenzhen_value_to_earn_table) > 0:
+        value_to_earn_table["shenzhen"] = []
+    for index, record in enumerate(shanghai_value_to_earn_table):
+        if index > 0:
+            record = record.select("td")
+            value_to_earn_table["shanghai"].append({
+                "交易所": record[0].text,
+                "市值配置(元)": from_thousandth_format(record[1].text),
+                "理论总收益(元)": from_thousandth_format(record[2].text),
+                "理论总收益率": from_percentage_format(record[3].text),
+                "理论增量收益率": from_percentage_format(record[4].text),
+                "理论年化": from_percentage_format(record[5].text),
+                "理论增量年化": from_percentage_format(record[6].text),
+            })
+    for index, record in enumerate(shenzhen_value_to_earn_table):
+        if index > 0:
+            record = record.select("td")
+            value_to_earn_table["shenzhen"].append({
+                "交易所": record[0].text,
+                "市值配置(元)": from_thousandth_format(record[1].text),
+                "理论总收益(元)": from_thousandth_format(record[2].text),
+                "理论总收益率": from_percentage_format(record[3].text),
+                "理论增量收益率": from_percentage_format(record[4].text),
+                "理论年化": from_percentage_format(record[5].text),
+                "理论增量年化": from_percentage_format(record[6].text),
+            })
+    return value_to_earn_table
+
+
+def get_stock_value_to_earn(money, table):
+    """
+
+    :param money: int 打新股市值
+    :param table: list 打新股市值配置/收益
+    :return:
+    """
+    for record in table:
+        if money <= record.get("市值配置(元)"):
+            return record
+
+
+def get_stock_distribution(total_assets, account_config, start_date):
+    """获取打新最佳市值分配
+
+    :param total_assets: string 总市值
+    :param account_config: dict 账户配置
+    :param start_date:string 计算开始时间
+    :return:
+    """
+    # 初始化账户数据
+    account_stock_config = []
+    index = 0
+    for account_type, num in account_config.items():
+        # 获取账户类型的市值收益信息
+        value_table = get_stock_value_to_earn_table(total_assets,
+                                                    account_type,
+                                                    start_date)
+        for one in range(num):
+            index += 1
+            for place, table in value_table.items():
+                if len(table) > 0:
+                    account_stock_config.append(
+                        {
+                            "账户名称": f"账户{index}",
+                            "账户类型": account_type,
+                            "证券所": place,
+                            "市值配置(元)": 0,
+                            "理论总收益(元)": 0,
+                            "理论增量年化": 0.0,
+                            "table": table,
+                        }
+                    )
+    # 根据每种账户类型的市值收益信息,计算合适比例
+    for index in range(total_assets):
+        # 对每个账户的市值配置增加一万元,然后获取对应的理论增量年化进行降序排序,
+        account_stock_config = sorted(
+            account_stock_config,
+            key=lambda x: get_stock_value_to_earn(
+                x.get("市值配置(元)") + 10000,
+                x.get("table")).get("理论增量年化"),
+            reverse=True)
+        # 一万元分配给理论增量年化最高的
+        account_stock_config[0]["市值配置(元)"] += 10000
+
+    # 更新数据
+    for record in account_stock_config:
+        config = get_stock_value_to_earn(
+            record.get("市值配置(元)"), record.get("table"))
+        record["理论总收益(元)"] = config.get("理论总收益(元)")
+        record["理论增量年化"] = config.get("理论增量年化")
+        del record["table"]
+    return account_stock_config
+
+
 if __name__ == "__main__":
-    print(thousandth_format("12211212.000"))
+    account_config = {
+        "double_open": 1,
+        "ke_chuang": 0,  # 科创板
+        "chuang_ye": 0,  # 创业板
+        "double_closed": 2,  # 双不开
+    }
+    print(get_stock_distribution(42, account_config, start_date='2021-01-01'))
+    total = 0
+    for record in get_stock_distribution(50, account_config,
+                                         start_date='2021-01-01'):
+        total += record.get("理论总收益(元)")
+    print(total / 420000)

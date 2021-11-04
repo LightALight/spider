@@ -152,6 +152,11 @@ if __name__ == "__main__":
     )
 
 
+def from_percentage_format(str_number):
+    # 百分比转换数字
+    return float(decimal.Decimal(str_number.rstrip("%")) / Decimal("100"))
+
+
 def percentage_format(number_str):
     """ 字符串小数转换成百分比
 
@@ -187,3 +192,12 @@ def thousandth_format(str_number):
         insert_postion += -4
     str_number = "".join(str_number_list) + str_decimal
     return str_number
+
+
+def from_thousandth_format(str_number):
+    """ 千分位转换数字
+
+    :param str_number:
+    :return:
+    """
+    return float(str_number.replace(",", ""))
