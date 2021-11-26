@@ -154,7 +154,7 @@ if __name__ == "__main__":
 
 def from_percentage_format(str_number):
     # 百分比转换数字
-    return float(decimal.Decimal(str_number.rstrip("%")) / Decimal("100"))
+    return float(decimal.Decimal(str_number.rstrip("%")) / decimal.Decimal("100"))
 
 
 def percentage_format(number_str):

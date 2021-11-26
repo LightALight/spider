@@ -10,6 +10,7 @@
 """
 import re
 import requests
+from bs4 import BeautifulSoup
 from config.target_url import *
 from util.tools import from_thousandth_format, from_percentage_format
 
