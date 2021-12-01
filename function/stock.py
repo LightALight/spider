@@ -278,9 +278,9 @@ if __name__ == "__main__":
         "chuang_ye": 0,  # 创业板
         "double_closed": 2,  # 双不开
     }
-    print(get_stock_distribution(42, account_config, start_date='2021-01-01'))
+    print(get_stock_distribution(46, account_config, start_date='2021-01-01'))
     total = 0
     for record in get_stock_distribution(50, account_config,
                                          start_date='2021-01-01'):
         total += record.get("理论总收益(元)")
-    print(total / 420000)
+    print(total / 460000)

@@ -134,27 +134,10 @@ def compute_data(sql_summary, value_colunm_name,
     store_records(table_name, records_info)
 
 
-if __name__ == "__main__":
-    summary_sql = "SELECT fund_date as stock_date,SUM(stock_value)  as stock_value FROM `tbl_stock_of_fund` GROUP BY stock_date ORDER BY stock_date"
-    compute_data(
-        summary_sql,
-        value_colunm_name="stock_value",
-        day_colunm_name="stock_date",
-        table_name="tbl_fund_total_stock",
-    )
-    summary_sql = "SELECT stock_code,fund_date as stock_date,stock_name,SUM(stock_value)  as stock_value FROM `tbl_stock_of_fund` GROUP BY stock_code,stock_date ORDER BY stock_code,stock_date"
-    compute_data(
-        summary_sql,
-        value_colunm_name="stock_value",
-        day_colunm_name="stock_date",
-        table_name="tbl_fund_stock_value",
-        sep_colunm_name="stock_code",
-    )
-
-
 def from_percentage_format(str_number):
     # 百分比转换数字
-    return float(decimal.Decimal(str_number.rstrip("%")) / decimal.Decimal("100"))
+    return float(decimal.Decimal(str_number.rstrip("%")) /
+                 decimal.Decimal("100"))
 
 
 def percentage_format(number_str):
@@ -201,3 +184,7 @@ def from_thousandth_format(str_number):
     :return:
     """
     return float(str_number.replace(",", ""))
+
+
+if __name__ == "__main__":
+    pass

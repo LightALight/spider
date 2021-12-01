@@ -20,7 +20,7 @@ import re
 from bs4 import BeautifulSoup
 
 from config.target_url import *
-from util.tools import store_records, error_info_write, percentage_format
+from util.tools import store_records, error_info_write, percentage_format, compute_data
 
 # 浏览器头
 headers = {
@@ -468,4 +468,20 @@ def get_stock_of_fund():
 
 
 if __name__ == "__main__":
-    get_fund_info_by_code("000001", "company")
+    # get_fund_info_by_code("000001", "company")
+    get_stock_of_fund()
+    summary_sql = "SELECT fund_date as stock_date,SUM(stock_value)  as stock_value FROM `tbl_fund_stock_info` GROUP BY stock_date ORDER BY stock_date"
+    compute_data(
+        summary_sql,
+        value_colunm_name="stock_value",
+        day_colunm_name="stock_date",
+        table_name="tbl_fund_total_stock",
+    )
+    summary_sql = "SELECT stock_code,fund_date as stock_date,stock_name,SUM(stock_value)  as stock_value FROM `tbl_fund_stock_info` GROUP BY stock_code,stock_date ORDER BY stock_code,stock_date"
+    compute_data(
+        summary_sql,
+        value_colunm_name="stock_value",
+        day_colunm_name="stock_date",
+        table_name="tbl_fund_stock_value",
+        sep_colunm_name="stock_code",
+    )
