@@ -213,17 +213,25 @@ def get_stock_value_to_earn(money, table):
     :param table: list 打新股市值配置/收益
     :return:
     """
+    if table[-1].get("市值配置(元)") < money:
+        print("若理论年化收益低于5%，则不建议专门为打新配置股票市值")
+        record = table[-1].copy()
+        record["理论年化收益低于5%"] = True
+        record["理论增量年化"] = record.get("理论增量年化") - 0.0001
+        return record
     for record in table:
         if money <= record.get("市值配置(元)"):
             return record
 
 
-def get_stock_distribution(total_assets, account_config, start_date):
+def get_stock_distribution(
+        total_assets, account_config, start_date, model_type="min"):
     """获取打新最佳市值分配
 
     :param total_assets: string 总市值
     :param account_config: dict 账户配置
-    :param start_date:string 计算开始时间
+    :param start_date:string 数据统计开始时间
+    :param model_type:string 枚举值 min:理论增量年化的账户达到上限 max:所有账户达到上限
     :return:
     """
     # 初始化账户数据
@@ -250,6 +258,7 @@ def get_stock_distribution(total_assets, account_config, start_date):
                         }
                     )
     # 根据每种账户类型的市值收益信息,计算合适比例
+    new_account_stock_config = []
     for index in range(total_assets):
         # 对每个账户的市值配置增加一万元,然后获取对应的理论增量年化进行降序排序,
         account_stock_config = sorted(
@@ -258,17 +267,38 @@ def get_stock_distribution(total_assets, account_config, start_date):
                 x.get("市值配置(元)") + 10000,
                 x.get("table")).get("理论增量年化"),
             reverse=True)
+        if model_type == "min":
+            last_account = account_stock_config[0]
+            if get_stock_value_to_earn(
+                    last_account.get("市值配置(元)") + 10000,
+                    last_account.get("table")).get("理论年化收益低于5%"):
+                # 如果理论增量年化最大的账户已经上限,停止分配
+                new_account_stock_config = account_stock_config
+                break
+
+        else:
+            for index, last_account in enumerate(account_stock_config):
+                if get_stock_value_to_earn(
+                        last_account.get("市值配置(元)") + 10000,
+                        last_account.get("table")).get("理论年化收益低于5%"):
+                    # 如果有个账户上限,就移除
+                    new_account_stock_config.append(
+                        account_stock_config.pop(index))
+
+            if len(account_stock_config) <= 0:
+                # 账户都已经上限
+                break
         # 一万元分配给理论增量年化最高的
         account_stock_config[0]["市值配置(元)"] += 10000
 
     # 更新数据
-    for record in account_stock_config:
+    for record in new_account_stock_config:
         config = get_stock_value_to_earn(
             record.get("市值配置(元)"), record.get("table"))
         record["理论总收益(元)"] = config.get("理论总收益(元)")
         record["理论增量年化"] = config.get("理论增量年化")
         del record["table"]
-    return account_stock_config
+    return new_account_stock_config
 
 
 if __name__ == "__main__":
@@ -278,9 +308,19 @@ if __name__ == "__main__":
         "chuang_ye": 0,  # 创业板
         "double_closed": 2,  # 双不开
     }
-    print(get_stock_distribution(46, account_config, start_date='2021-01-01'))
-    total = 0
-    for record in get_stock_distribution(50, account_config,
-                                         start_date='2021-01-01'):
-        total += record.get("理论总收益(元)")
-    print(total / 460000)
+    total_assets = 1000
+    start_date = "2021-01-01"
+    model_type = "min"
+    account_stock_config = get_stock_distribution(
+        total_assets,
+        account_config,
+        start_date,
+        model_type,
+    )
+    print(account_stock_config)
+    total_earning = 0
+    total_value = 0
+    for record in account_stock_config:
+        total_earning += record.get("理论总收益(元)")
+        total_value += record.get("市值配置(元)")
+    print(f"总收益:{total_earning},收益率:{total_earning / total_value},剩余资金{total_assets-(total_value/10000)}万元做其它资产配置")
