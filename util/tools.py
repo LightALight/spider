@@ -186,5 +186,17 @@ def from_thousandth_format(str_number):
     return float(str_number.replace(",", ""))
 
 
+def get_last_days_time(day):
+    """ 获取前几天的日期
+
+    :param day: int 天数
+    :return:
+    """
+    today = datetime.date.today()
+    one_year = datetime.timedelta(days=day)
+    last_year = today - one_year
+    return last_year
+
+
 if __name__ == "__main__":
-    pass
+    print(str(get_last_days_time(365)))

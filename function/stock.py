@@ -12,7 +12,7 @@ import re
 import requests
 from bs4 import BeautifulSoup
 from config.target_url import *
-from util.tools import from_thousandth_format, from_percentage_format
+from util.tools import from_thousandth_format, from_percentage_format, get_last_days_time
 
 # 浏览器头
 headers = {
@@ -309,7 +309,7 @@ if __name__ == "__main__":
         "double_closed": 2,  # 双不开
     }
     total_assets = 1000
-    start_date = "2021-01-01"
+    start_date = str(get_last_days_time(365))
     model_type = "min"
     account_stock_config = get_stock_distribution(
         total_assets,
